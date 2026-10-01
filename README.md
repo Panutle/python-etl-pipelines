@@ -1,6 +1,6 @@
 # Python ETL Pipelines | Data Engineering Portfolio
 
-[![Python](https://img.shields.io/badge/Python-3.8%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
+[![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
 [![PostgreSQL](https://img.shields.io/badge/Source-PostgreSQL-4169E1?style=flat-square&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![MongoDB](https://img.shields.io/badge/Target-MongoDB-47A248?style=flat-square&logo=mongodb&logoColor=white)](https://www.mongodb.com/)
 [![SQL Server](https://img.shields.io/badge/Platform-SQL%20Server-CC2927?style=flat-square&logo=microsoftsqlserver&logoColor=white)](https://www.microsoft.com/sql-server)
@@ -78,7 +78,7 @@ MongoDB document
 
 **Script:** [`src/sqlserver_etl_upsert.py`](src/sqlserver_etl_upsert.py)
 
-This workflow extracts a SQL Server table, retrieves its column names dynamically from `INFORMATION_SCHEMA.COLUMNS`, and creates a Pandas DataFrame for transformation. It writes an intermediate table and then uses a SQL Server `MERGE` statement to synchronize the target table: matching keys are updated and new keys are inserted.
+This workflow extracts a SQL Server table, retrieves its column names dynamically from `INFORMATION_SCHEMA.COLUMNS`, and creates a Pandas DataFrame for transformation. It replaces two working tables and then uses a SQL Server `MERGE` statement to synchronize the target table: matching keys are updated and new keys are inserted.
 
 **Transformation and load flow**
 
@@ -96,13 +96,13 @@ SQL Server source table
 - Dynamic schema lookup avoids manually duplicating source column names in the pipeline.
 - Pandas provides an explicit, inspectable transformation layer before loading.
 - SQLAlchemy manages table exports, while `pyodbc` runs the SQL Server `MERGE` operation.
-- Upsert behavior makes repeated loads suitable for synchronizing a target table instead of appending duplicates.
+- The current `main()` replaces both working SQL tables with `to_sql(if_exists="replace")` before calling `MERGE`. It demonstrates the SQL pattern, but must be adapted to preserve an existing target for incremental synchronization.
 
 ---
 
 ## Technology Stack
 
-- **Language:** Python 3.8+
+- **Language:** Python 3.10+
 - **Databases:** PostgreSQL, MongoDB, Microsoft SQL Server
 - **Data processing:** Pandas
 - **Connectors:** `psycopg2`, `pymongo`, `pyodbc`, SQLAlchemy
@@ -126,7 +126,16 @@ python-etl-pipelines/
 
 ## Run Locally
 
-### 1. Create a virtual environment and install dependencies
+### 1. Clone and install dependencies
+
+Use Python 3.10+ for this setup and install the pinned dependencies below. The SQL Server script also requires the system-level **ODBC Driver 17 for SQL Server** referenced in its connection string.
+
+```bash
+git clone https://github.com/Panutle/python-etl-pipelines.git
+cd python-etl-pipelines
+```
+
+Create a virtual environment:
 
 ```bash
 python -m venv .venv
@@ -136,7 +145,14 @@ python -m venv .venv
 
 ```powershell
 .\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
+```
+
+**macOS / Linux**
+
+```bash
+source .venv/bin/activate
+python -m pip install -r requirements.txt
 ```
 
 ### 2. Configure database connections
@@ -147,7 +163,7 @@ Copy `.env.example` to `.env`, then update the database hosts, usernames, passwo
 Copy-Item .env.example .env
 ```
 
-Do not commit `.env`; it contains credentials.
+Do not commit `.env`; it contains credentials. This repository does not currently include a `.gitignore`, so add `.env` and `.venv/` to your local Git exclusions before staging files.
 
 ### 3. Set the table-specific values
 
@@ -157,6 +173,8 @@ Before execution, replace the placeholder table names and transformation logic i
 - In `sqlserver_etl_upsert.py`, update `table_target`, `table_upsert`, `table_source`, `col_condition`, and the logic in `DF_2()` for the actual dataset.
 
 ### 4. Execute a pipeline
+
+Choose one script for your configured test databases. The MongoDB script drops the destination collection; the SQL Server script replaces both configured working tables. Neither command is a read-only preview.
 
 ```bash
 python src/pg_to_mongo_migration.py
